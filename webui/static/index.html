@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PFMEA Consolidation Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e1e4e8;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --user-bubble: #2563eb;
+    --user-text: #ffffff;
+    --assistant-bubble: #eef1f4;
+    --tool-text: #8a6d00;
+    --tool-bg: #fff8e1;
+    --error: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 14px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  header p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #status-banner {
+    display: none;
+    padding: 8px 20px;
+    background: #fef2f2;
+    color: var(--error);
+    font-size: 13px;
+    border-bottom: 1px solid #fca5a5;
+  }
+  main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+  #conversation {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .row { display: flex; }
+  .row.user { justify-content: flex-end; }
+  .row.assistant { justify-content: flex-start; }
+  .bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    line-height: 1.45;
+    font-size: 14px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .user .bubble { background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 3px; }
+  .assistant .bubble { background: var(--assistant-bubble); color: var(--text); border-bottom-left-radius: 3px; }
+  .tool-line {
+    align-self: flex-start;
+    font-size: 12px;
+    color: var(--tool-text);
+    background: var(--tool-bg);
+    border: 1px solid #f2e3a1;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  .error-line {
+    align-self: flex-start;
+    font-size: 13px;
+    color: var(--error);
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+  footer {
+    padding: 14px 20px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+  }
+  #composer {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    gap: 8px;
+  }
+  #message-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+  }
+  #message-input:focus { outline: 2px solid var(--user-bubble); outline-offset: -1px; }
+  #send-button {
+    padding: 10px 18px;
+    background: var(--user-bubble);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #send-button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #attach-button {
+    padding: 10px 12px;
+    background: var(--assistant-bubble);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #attach-button:disabled { cursor: not-allowed; opacity: 0.6; }
+  #composer-wrap {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #attachment-preview {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--assistant-bubble);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    width: fit-content;
+  }
+  #attachment-preview img {
+    height: 36px;
+    width: 36px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  #attachment-preview button {
+    border: none;
+    background: none;
+    color: var(--error);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+  }
+  .bubble img.attachment {
+    display: block;
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+  .cursor::after {
+    content: "▍";
+    animation: blink 1s step-start infinite;
+    color: var(--muted);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>PFMEA Consolidation Agent</h1>
+    <p>Local demo — talks to the pfmea-consolidation MCP server (cluster_pfmea_files, ingest_decisions, export_final_pfmea, get_pipeline_status, search_standard_lines).</p>
+  </header>
+  <div id="status-banner"></div>
+  <main><div id="conversation"></div></main>
+  <footer>
+    <div id="composer-wrap">
+      <div id="attachment-preview">
+        <img id="attachment-thumb" alt="attached image preview">
+        <span id="attachment-name"></span>
+        <button id="attachment-remove" type="button" title="Remove attachment">✕</button>
+      </div>
+      <form id="composer">
+        <button id="attach-button" type="button" title="Attach a drawing, schematic, or process diagram">📎</button>
+        <input id="image-input" type="file" accept="image/*" hidden>
+        <textarea id="message-input" rows="1" placeholder="Ask about the PFMEA pipeline, or attach a drawing to propose a process..." autofocus></textarea>
+        <button id="send-button" type="submit">Send</button>
+      </form>
+    </div>
+  </footer>
+
+<script>
+  const conversationEl = document.getElementById("conversation");
+  const composerEl = document.getElementById("composer");
+  const inputEl = document.getElementById("message-input");
+  const sendButton = document.getElementById("send-button");
+  const statusBanner = document.getElementById("status-banner");
+  const attachButton = document.getElementById("attach-button");
+  const imageInput = document.getElementById("image-input");
+  const attachmentPreview = document.getElementById("attachment-preview");
+  const attachmentThumb = document.getElementById("attachment-thumb");
+  const attachmentName = document.getElementById("attachment-name");
+  const attachmentRemove = document.getElementById("attachment-remove");
+
+  let history = [];  // agent input-item list, round-tripped from the server each turn
+  let attachedImageDataUrl = null;  // GENERATION intake's "upload a drawing" path
+
+  function addRow(role, text, imageDataUrl) {
+    const row = document.createElement("div");
+    row.className = "row " + role;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    if (imageDataUrl) {
+      const img = document.createElement("img");
+      img.className = "attachment";
+      img.src = imageDataUrl;
+      img.alt = "attached image";
+      bubble.appendChild(img);
+    }
+    if (text) {
+      const textNode = document.createElement("span");
+      textNode.textContent = text;
+      bubble.appendChild(textNode);
+    }
+    row.appendChild(bubble);
+    conversationEl.appendChild(row);
+    conversationEl.scrollTop = conversationEl.scrollHeight;
+    return bubble;
+  }
+
+  function clearAttachment() {
+    attachedImageDataUrl = null;
+    imageInput.value = "";
+    attachmentPreview.style.display = "none";
+    attachmentThumb.src = "";
+    attachmentName.textContent = "";
+  }
+
+  attachButton.addEventListener("click", () => imageInput.click());
+
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      attachedImageDataUrl = reader.result;
+      attachmentThumb.src = attachedImageDataUrl;
+      attachmentName.textContent = file.name;
+      attachmentPreview.style.display = "flex";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  attachmentRemove.addEventListener("click", clearAttachment);
+
+  function addToolLine(text) {
+    const el = document.createElement("div");
+    el.className = "tool-line";
+    el.textContent = text;
+    conversationEl.appendChild(el);
+    conversationEl.scrollTop = conversationEl.scrollHeight;
+  }
+
+  function addErrorLine(text) {
+    const el = document.createElement("div");
+    el.className = "error-line";
+    el.textContent = text;
+    conversationEl.appendChild(el);
+    conversationEl.scrollTop = conversationEl.scrollHeight;
+  }
+
+  function showBanner(text) {
+    statusBanner.textContent = text;
+    statusBanner.style.display = text ? "block" : "none";
+  }
+
+  async function checkHealth() {
+    try {
+      const resp = await fetch("/api/health");
+      const data = await resp.json();
+      if (!data.ready) {
+        showBanner(data.message || "Agent is not ready.");
+      }
+    } catch (e) {
+      showBanner("Could not reach the web UI backend.");
+    }
+  }
+
+  async function sendMessage(message) {
+    const imageDataUrl = attachedImageDataUrl;
+    addRow("user", message, imageDataUrl);
+    clearAttachment();
+    const assistantBubble = addRow("assistant", "");
+    assistantBubble.classList.add("cursor");
+
+    sendButton.disabled = true;
+    let assistantText = "";
+
+    try {
+      const resp = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, history, image: imageDataUrl }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        const body = await resp.text();
+        assistantBubble.classList.remove("cursor");
+        addErrorLine("Request failed: " + (body || resp.statusText));
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();  // last (possibly incomplete) line stays in the buffer
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line);
+          if (event.type === "delta") {
+            assistantText += event.text;
+            assistantBubble.textContent = assistantText;
+            conversationEl.scrollTop = conversationEl.scrollHeight;
+          } else if (event.type === "tool_call") {
+            addToolLine("🔧 calling " + event.name + "...");
+          } else if (event.type === "tool_output") {
+            addToolLine("✓ " + event.name + " finished");
+          } else if (event.type === "error") {
+            addErrorLine(event.message);
+          } else if (event.type === "history") {
+            history = event.items;
+          }
+        }
+      }
+    } catch (e) {
+      addErrorLine("Connection error: " + e.message);
+    } finally {
+      assistantBubble.classList.remove("cursor");
+      if (!assistantText) assistantBubble.remove();
+      sendButton.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  composerEl.addEventListener("submit", (e) => {
+    e.preventDefault();
+    let message = inputEl.value.trim();
+    if (!message && !attachedImageDataUrl) return;
+    if (!message) message = "Here's a drawing/schematic of our process -- please propose an operation sequence from it.";
+    inputEl.value = "";
+    sendMessage(message);
+  });
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      composerEl.requestSubmit();
+    }
+  });
+
+  checkHealth();
+</script>
+</body>
+</html>

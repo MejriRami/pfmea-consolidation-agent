@@ -1,0 +1,22 @@
+# Secrets / local config
+.env
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Project-local caches
+.embedding_cache.json
+
+# Excel lock files
+~$*.xlsx
+
+# Virtual environments
+.venv/
+venv/
+
+# Generated outputs
+out/
+exports/*.xlsx
+exports/*.json
