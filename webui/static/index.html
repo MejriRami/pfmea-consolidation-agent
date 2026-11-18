@@ -79,6 +79,7 @@
   }
   .user .bubble { background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 3px; }
   .assistant .bubble { background: var(--assistant-bubble); color: var(--text); border-bottom-left-radius: 3px; }
+  .bubble .file-link { font-weight: 600; text-decoration: underline; }
   .tool-line {
     align-self: flex-start;
     font-size: 12px;
@@ -310,6 +311,15 @@
     }
   }
 
+  // Minimal, safe formatting for the agent's replies: escape everything, then
+  // allow **bold** and [label](link) only. No raw HTML from the model.
+  function renderLight(text) {
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escaped
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<span class="file-link">$1</span>');
+  }
+
   async function sendMessage(message) {
     const imageDataUrl = attachedImageDataUrl;
     addRow("user", message, imageDataUrl);
@@ -350,10 +360,10 @@
           const event = JSON.parse(line);
           if (event.type === "delta") {
             assistantText += event.text;
-            assistantBubble.textContent = assistantText;
+            assistantBubble.innerHTML = renderLight(assistantText);
             conversationEl.scrollTop = conversationEl.scrollHeight;
           } else if (event.type === "tool_call") {
-            addToolLine("🔧 calling " + event.name + "...");
+            addToolLine("→ calling " + event.name + "…");
           } else if (event.type === "tool_output") {
             addToolLine("✓ " + event.name + " finished");
           } else if (event.type === "error") {
