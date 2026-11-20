@@ -2,7 +2,7 @@
 
 Multi-agent system that consolidates Process FMEA (PFMEA) documents from several plants into one standard, and generates new PFMEAs from human-approved content, exposed to LLM assistants through an MCP server and a small web chat.
 
-**▶ [Demo video, about 2 min, French narration](https://github.com/MejriRami/pfmea-consolidation-agent/releases/download/demo/2_Agent_PFMEA.mp4)** · fictional data
+**▶ [Demo video, about 2 min](https://mejrirami.github.io/demos/#pfmea)**
 
 > **Résumé (FR)** : système multi-agents qui consolide automatiquement les AMDEC Processus (PFMEA) de plusieurs sites en un référentiel standard, puis génère de nouvelles PFMEA à partir du seul contenu validé par un humain. Conçu et livré en entreprise ; ce dépôt est anonymisé et la démonstration utilise des données fictives.
 
